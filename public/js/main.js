@@ -13,6 +13,7 @@ var w; // Width of pieces
 var stickScore = null; // Score for sticks
 var canThrowSticks = false;
 var renderBoard = false;
+var draggingHouseStart; // Start coordinates for draggingHouse
 
 const senetBoardWidth = 700;
 const senetBoardHeight = 237;
@@ -34,6 +35,8 @@ function setup() {
   anubisImage = loadImage('./img/anubis.png');
   blackStickImage = loadImage('./img/black-stick.png');
   whiteStickImage = loadImage('./img/white-stick.png');
+
+  Sounds.create("error", "./sound/error.mp3");
 }
 
 // Renders certain state to canvas
@@ -142,11 +145,12 @@ function mousePressed() {
   if (renderBoard) {
     // Find house we are over
     for (let i = 0; i < boardInfo.board.length; i++) {
-      if (typeof boardInfo.board[i] == 'boolean' && boardInfo.board[i] == boardInfo.mov) {
+      if ((boardRenderInfo.mode == 1 && boardInfo.board[i] == boardInfo.whiteGo) || (typeof boardInfo.board[i] == 'boolean' && boardInfo.board[i] == boardInfo.mov)) {
         let pos = boardInfo.pos[i];
         let isOver = (mouseX > pos[0] - w && mouseX < pos[0] + w && mouseY > pos[1] - w && mouseY < pos[1] + w);
         if (isOver) {
           draggingHouse = i;
+          draggingHouseStart = [pos[0], pos[1]];
           break;
         }
       }
@@ -167,5 +171,31 @@ function mouseDragged() {
 }
 
 function mouseReleased() {
-  draggingHouse = -1;
+  if (renderBoard && draggingHouse != -1) {
+    blck: {
+      let houseStart = getHouseOver(...draggingHouseStart);
+      if (houseStart == -1) {
+        console.log("houseStart is -1: ", draggingHouseStart);
+        Sounds.play("error");
+        resetPiecePos(draggingHouse);
+        break blck;
+      }
+
+      let houseEnd = getHouseOver(...boardInfo.pos[draggingHouse]);
+      if (houseEnd == -1) {
+        console.log("houseEnd is -1: ", boardInfo.pos[draggingHouse]);
+        Sounds.play("error");
+        movPiece(draggingHouse, ...draggingHouseStart);
+        break blck;
+      }
+
+      // Only check different houses
+      if (houseStart == houseEnd) break blck;
+
+      console.log("From", houseStart, "to", houseEnd);
+      __emit('piece-move', { pindex: draggingHouse, hfrom: houseStart, hto: houseEnd });
+    }
+    draggingHouse = -1;
+    draggingHouseStart = undefined;
+  }
 }

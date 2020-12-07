@@ -5,7 +5,7 @@ class User {
     this._name = name;
     this._passwd = password;
 
-    this.games = [];
+    this.games = []; // Games which are belonging to this user
 
     /** SocketIO_Socket class (SocketIO_Socket or null) */
     this.socket = null;

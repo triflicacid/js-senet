@@ -49,18 +49,22 @@ io.on('connection', (socket) => {
         Socket.throwSticks();
         break;
       }
+      case "piece-move": {
+        Socket.error('Error', 'Piece validation not implemented');
+        break;
+      }
       default:
         Socket.error('Unknown Event', `Unknown client event '${data.event}'`);
     }
   });
 
-  // Socket.signin('dev1', '123');
+  Socket.signin('dev1', '123');
 
-  // setTimeout(() => {
-  //   Socket.selectGame('test', '123');
-  // }, 500);
+  setTimeout(() => {
+    Socket.selectGame('test', '123');
+  }, 500);
 });
 
 User.create('dev1', '123');
 User.create('dev2', '123');
-SenetBoard.newGame('test', 'dev1', false, '123');
+SenetBoard.newGame('test', 'dev1', true, '123');

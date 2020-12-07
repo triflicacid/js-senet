@@ -7,7 +7,6 @@ function __emit(event, data = undefined) {
 }
 
 socket.on('status', (data) => {
-  console.log(data)
   switch (data.status) {
     case "unknown":
       render('instructions', data.sid);
