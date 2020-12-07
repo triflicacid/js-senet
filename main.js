@@ -2,7 +2,7 @@ const express = require('express');
 const socketio = require('socket.io');
 
 const SenetBoard = require('./src/senet-board.js');
-const users = require('./src/users.js');
+const User = require('./src/user.js');
 const SocketIO_Socket = require('./src/socket-class.js');
 
 const PORT = 3000;
@@ -54,15 +54,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  Socket.signin('dev', '123');
+  // Socket.signin('dev1', '123');
 
-  setTimeout(() => {
-    Socket.selectGame('test', '123');
-  }, 500);
+  // setTimeout(() => {
+  //   Socket.selectGame('test', '123');
+  // }, 500);
 });
 
-users.createUser('dev', '123');
-
-let game = new SenetBoard('test', true, '123');
-SenetBoard.games['test'] = game;
-users.users.dev.games.push('test');
+User.create('dev1', '123');
+User.create('dev2', '123');
+SenetBoard.newGame('test', 'dev1', false, '123');

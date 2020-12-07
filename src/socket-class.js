@@ -1,4 +1,4 @@
-const users = require('./users.js');
+const User = require('./user.js');
 const SenetBoard = require('./senet-board.js');
 
 /**
@@ -10,7 +10,7 @@ class SocketIO_Socket {
     this._sid = socket.id;
 
     this.currentStatus = undefined;
-    this.user = null; // Details of logged in user (from users.users)
+    this.user = null; // User object, or null
     this.activeGame = null; // SenetBoard object of current game
 
     SocketIO_Socket.connected.push(this);
@@ -19,25 +19,28 @@ class SocketIO_Socket {
     // Initate status communication
     this.sendStatus('unknown');
 
-    this._socket.on('disconnect', () => this._disconnect());
+    this._socket.on('disconnect', () => this.disconnect());
+
+    SocketIO_Socket.updateOnline();
   }
 
-  _disconnect() {
+  disconnect() {
     const i = SocketIO_Socket.connected.indexOf(this);
     SocketIO_Socket.connected.splice(i, 1);
+    SocketIO_Socket.updateOnline();
 
     // Remove from game
     if (this.activeGame != null) {
-      let i = this.activeGame._players.indexOf(this);
-      this.activeGame._players.splice(i, 1);
+      if (this.activeGame.player1 == this) this.activeGame.player1 = null;
+      else if (this.activeGame.player2 == this) this.activeGame.player2 = null;
+      this.activeGame.emitInfo();
 
       this.activeGame = null;
     }
 
     // Logout user
     if (this.user) {
-      this.user.online = false;
-      this.user = null;
+      this.user.logout();
     }
 
     console.log(`Socket ${this._sid} DISCONNECTED`);
@@ -89,19 +92,14 @@ class SocketIO_Socket {
     if (typeof password !== 'string' || password == '') return this.error('Error', 'Password is required');
 
     // Username exists?
-    if (users.users.hasOwnProperty(username)) {
-      // ALready logged in to?
-      if (users.users[username].online) {
-        return this.error('Error', 'Username already logged in');
+    if (User.users.hasOwnProperty(username)) {
+      const user = User.users[username];
+      const obj = user.signin(username, password, this);
+      if (obj.error) {
+        this.error('Error', obj.msg);
       } else {
-        // Password correct?
-        if (users.users[username].password == password) {
-          this.user = users.users[username];
-          this.log(`signed in as ${username}`);
-          this.sendStatus('logged-in', { username });
-        } else {
-          return this.error('Error', 'Incorrect password');
-        }
+        this.log(`signed in as ${username}`);
+        this.sendStatus('logged-in', { username });
       }
     } else {
       return this.error('Error', 'Unrecognised username');
@@ -118,14 +116,14 @@ class SocketIO_Socket {
     if (typeof password !== 'string' || password == '') return this.error('Error', 'Password is required');
 
     // Username exists?
-    if (users.users.hasOwnProperty(username)) {
-      return this.error('Error', `Username ${username} already exists`);
+    let user = User.create(username, password);
+    if (user == null) {
+      this.error('Error', `Username ${username} already exists`);
     } else {
-      // Create account
-      users.createUser(username, password);
+      // Created account
       this.log(`created account ${username}`);
 
-      // SIgn-In
+      // Sign-In
       this.signin(username, password);
     }
   }
@@ -135,7 +133,17 @@ class SocketIO_Socket {
     if (this.currentStatus != 'logged-in') return this.error('Error', 'Unable to fetch game list at this time');
     if (this.user == null) return this.error('Error', 'Must be logged in to view game list');
 
-    let games = this.user.games;
+    let games = [];
+    for (let gameName in SenetBoard.games) {
+      if (SenetBoard.games.hasOwnProperty(gameName)) {
+        let game = SenetBoard.games[gameName];
+        if (game._owner == this.user._name || game._play_mode == SenetBoard.PlayModeEnum.DOUBLE) games.push({
+          name: gameName,
+          mode: game._play_mode,
+          owner: game._owner,
+        });
+      }
+    }
     this.log(`requested game list: ${games.length} games`);
     this.sendStatus('game-list', { games });
   }
@@ -146,12 +154,10 @@ class SocketIO_Socket {
     if (this.user == null) return this.error('Error', 'Must be logged in to view game list');
     if (typeof name !== 'string' || name == '') return this.error('Error', 'Game name is required');
 
-    // Does game already exist?
-    if (SenetBoard.games.hasOwnProperty(name)) {
-      return this.error('Error', `Game '${name}' already exists`);
+    const obj = SenetBoard.newGame(name, this.user._name, isSingle, password);
+    if (obj.error) {
+      this.error('Error', obj.msg);
     } else {
-      SenetBoard.games[name] = new SenetBoard(name, isSingle === true, password);
-      this.user.games.push(name);
       this.log(`create new game '${name}' (password: ${password == '' ? 'No' : 'Yes'})`);
       this.selectGame(name, password);
     }
@@ -173,54 +179,20 @@ class SocketIO_Socket {
     if (typeof password != 'string') password = '';
     if (this.user == null) return this.error('Error', 'Must be logged in to select a game');
 
-    const joinGame = (game) => {
-      this.activeGame = game;
-      this.activeGame._players.push(this);
-      this.log(`joined game ${game._name}`);
-      this.sendStatus('joined-game', { game: game._name });
-      this.sendStatus('board-setup', this.activeGame.getSetupData());
-      this.activeGame.emitInfo();
-    };
-
     // Does game exist?
     if (SenetBoard.games[name]) {
-      // If game is password protected...
-      if (SenetBoard.games[name]._password.length != 0 && password != SenetBoard.games[name]._password) {
-        return this.error('Error', `Cannot join game: password is incorrect`);
-      }
+      const game = SenetBoard.games[name];
 
-      // Is it our game?
-      if (this.user.games.indexOf(name) !== -1) {
-        // Singleplayer game?
-        if (SenetBoard.games[name]._play_mode == SenetBoard.PlayModeEnum.SINGLE) {
-          if (SenetBoard.games[name]._players.length == 0) {
-            joinGame(SenetBoard.games[name]);
-          } else {
-            this.error('Error', 'Single player game is full (1/1)');
-            this.sendStatus('joined-game', { game: name });
-          }
-        } else {
-          if (SenetBoard.games[name]._players.length == 2) {
-            this.error('Error', 'Multi player game is full (2/2)');
-          } else {
-            joinGame(SenetBoard.games[name]);
-          }
-        }
-      } else {
-        // Cannot connect to external singleplayer game
-        if (SenetBoard.games[name]._play_mode == SenetBoard.PlayModeEnum.SINGLE) {
-          this.error('Error', `Cannot join singleplayer game as it is not ours`);
-        } else {
-          // Is game full?
-          if (SenetBoard.games[name]._players.length == 2) {
-            this.error('Error', `Multiplayer game '${name}' is full (2/2)`);
-          } else {
-            joinGame(SenetBoard.games[name]);
-          }
-        }
-      }
+      game.addPlayer(this, password);
     } else {
       this.error('Error', `Game ${name} does not exist`);
+    }
+  }
+
+  /** Alert all users of who is connected */
+  static updateOnline() {
+    for (let conn of SocketIO_Socket.connected) {
+      conn.emit('online-count', { online: SocketIO_Socket.connected.length });
     }
   }
 }

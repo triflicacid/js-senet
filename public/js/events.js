@@ -14,7 +14,7 @@ socket.on('status', (data) => {
       init_signin(data.sid);
       break;
     case "logged-in":
-      document.getElementById('logged-in-user').innerText = data.username;
+      document.getElementById('extra-info').innerHTML = `User <b>${data.username}</b>`;
       __emit('get-games');
       break;
     case "game-list":
@@ -22,7 +22,6 @@ socket.on('status', (data) => {
       init_selectGame(data.sid, data.games);
       break;
     case "joined-game":
-      document.getElementById('active-game').innerText = data.game;
       container.innerHTML = '';
       render('message', 'Please Wait...');
       break;
@@ -31,6 +30,9 @@ socket.on('status', (data) => {
       delete data.status;
       boardRenderInfo = data;
       renderBoard = true;
+      let mode = data.mode == 1 ? 'single' : 'double';
+      document.getElementById('extra-info').innerHTML += `, playing <i>${mode}</i> game <b> ${data.name}</b>`;
+      if (typeof data.whoami == 'boolean') document.getElementById('extra-info').innerHTML += ` (<b>${data.whoami ? "white" : "black"}</b>)`;
       render('message', 'Please Wait.....');
       break;
     default:
@@ -40,24 +42,28 @@ socket.on('status', (data) => {
 });
 
 socket.on('board-info', (data) => {
+  console.log("BOARD UPDATE");
   if (data.sid != socket.id) {
     render('error', { title: 'Connection Error', message: 'SID mismatch' });
   } else {
     data = data.data;
+    boardInfo = data;
     if (data.players == data.max) {
-      console.log(data);
-      boardInfo = data;
       renderBoard = true;
       render('board');
     } else {
       renderBoard = false;
-      render('message', `Waiting for players... (${data.players}/${data.max})`);
+      render('message', `${boardRenderInfo.name}: waiting for players... (${data.players}/${data.max})`);
     }
   }
 });
 
+socket.on('online-count', (data) => {
+  document.getElementById('online').innerText = data.online;
+});
+
 socket.on('fatal-error', (data) => {
   renderBoard = false;
-  console.error(`[ ERROR ]\n- ${data.title}: "${data.message}"`);
+  console.error(`[ERROR]\n - ${data.title}: "${data.message}"`);
   render('error', data);
 });

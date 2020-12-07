@@ -79,8 +79,12 @@ function init_selectGame(sid, games) {
   let menu = document.createElement('select');
   for (let game of games) {
     let optn = document.createElement('option');
-    optn.innerText = game;
-    optn.id = game;
+    if (game.mode == 1) {
+      optn.innerText = `${game.name} (type: Single)`;
+    } else {
+      optn.innerText = `${game.name} (type: Double, owner: ${game.owner})`;
+    }
+    optn.value = game.name;
     menu.appendChild(optn);
   }
   container.insertAdjacentElement('beforeend', menu);

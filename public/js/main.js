@@ -12,6 +12,7 @@ var draggingHouse = -1; // Index of house that we are changing pos[] of
 var w; // Width of pieces
 var stickScore = null; // Score for sticks
 var canThrowSticks = false;
+var renderBoard = false;
 
 const senetBoardWidth = 700;
 const senetBoardHeight = 237;
@@ -37,6 +38,7 @@ function setup() {
 
 // Renders certain state to canvas
 function render(mode, data = undefined) {
+  renderBoard = mode == "board";
   try {
     background(bgColour);
   } catch (e) {
@@ -73,8 +75,9 @@ function render(mode, data = undefined) {
         textSize(17);
         noStroke();
         fill(data.whiteGo ? white : black);
-        text(data.whiteGo ? "White" : "Black", boardRenderInfo.padding + boardRenderInfo.border, boardRenderInfo.padding);
-        text(data.whiteGo ? "White" : "Black", boardRenderInfo.padding + boardRenderInfo.border, senetBoardHeight - boardRenderInfo.padding / 3);
+        let txt = (data.whiteGo ? "White" : "Black") + "'s Go";
+        text(txt, boardRenderInfo.padding + boardRenderInfo.border, boardRenderInfo.padding);
+        text(txt, boardRenderInfo.padding + boardRenderInfo.border, senetBoardHeight - boardRenderInfo.padding / 3);
 
         strokeWeight(2);
         w = boardRenderInfo.w / 3.5;
@@ -139,7 +142,7 @@ function mousePressed() {
   if (renderBoard) {
     // Find house we are over
     for (let i = 0; i < boardInfo.board.length; i++) {
-      if (boardInfo.board[i] == boardInfo.whiteGo) {
+      if (typeof boardInfo.board[i] == 'boolean' && boardInfo.board[i] == boardInfo.mov) {
         let pos = boardInfo.pos[i];
         let isOver = (mouseX > pos[0] - w && mouseX < pos[0] + w && mouseY > pos[1] - w && mouseY < pos[1] + w);
         if (isOver) {
