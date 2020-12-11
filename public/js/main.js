@@ -20,6 +20,7 @@ const senetBoardHeight = 237;
 
 const anubisWidth = 179;
 const anubisHeight = 215;
+const anubisPadding = 11; // Y-padding on anubis
 
 const white = [242, 223, 223];
 const black = [129, 122, 127];
@@ -65,11 +66,11 @@ function render(mode, data = undefined) {
       // Display image
       image(senetBoardImage, 0, 0, senetBoardWidth, senetBoardHeight);
 
-      image(anubisImage, senetBoardWidth, 11, anubisWidth, anubisHeight);
+      image(anubisImage, senetBoardWidth, anubisPadding, anubisWidth, anubisHeight);
       stroke(151, 99, 12);
       strokeWeight(3);
       fill(252, 204, 155, 120);
-      rect(senetBoardWidth, 11, anubisWidth, anubisHeight);
+      rect(senetBoardWidth, anubisPadding, anubisWidth, anubisHeight);
 
       if (boardRenderInfo == undefined || data == undefined) {
         render('error', { title: 'Cannot Render Game', message: 'Missing information' });
@@ -90,6 +91,10 @@ function render(mode, data = undefined) {
           if (data.board[x] != null) {
             renderPiece(data.board[x], pos[0], pos[1], w);
           }
+          fill(220, 0, 255);
+          noStroke();
+          text("i: " + x, ...pos);
+          text("l: " + boardRenderInfo.labels[x], pos[0], pos[1] - 20);
         }
 
         // Sticks
@@ -106,7 +111,7 @@ function render(mode, data = undefined) {
         // Render pieces that are on anubis
         gap = w * 2;
         let x = w;
-        y = 11 + w;
+        y = anubisPadding + w;
         let pieces = [...new Array(data.atAnubis[0]).fill(true), ...new Array(data.atAnubis[1]).fill(false)];
         for (let i = 0; i < pieces.length; ++i) {
           renderPiece(pieces[i], senetBoardWidth + x + w, y + w, w);
@@ -116,8 +121,6 @@ function render(mode, data = undefined) {
             y += gap + w;
           }
         }
-
-        // 
       }
       break;
     }
@@ -161,7 +164,7 @@ function mousePressed() {
 function mouseDragged() {
   if (renderBoard) {
     if (draggingHouse != -1) {
-      if (mouseX < w || mouseX > senetBoardWidth - w || mouseY < w || mouseY > senetBoardHeight - w); else {
+      if (mouseX < w || mouseX > (senetBoardWidth + anubisWidth) - w || mouseY < w || mouseY > senetBoardHeight - w); else {
         boardInfo.pos[draggingHouse][0] = parseInt(mouseX);
         boardInfo.pos[draggingHouse][1] = parseInt(mouseY);
         render('board');
@@ -184,15 +187,18 @@ function mouseReleased() {
       let houseEnd = getHouseOver(...boardInfo.pos[draggingHouse]);
       if (houseEnd == -1) {
         console.log("houseEnd is -1: ", boardInfo.pos[draggingHouse]);
-        Sounds.play("error");
-        movPiece(draggingHouse, ...draggingHouseStart);
-        break blck;
+        if (overAnubis(...boardInfo.pos[draggingHouse])) {
+          cohouseEnd = 'a';
+        } else {
+          Sounds.play("error");
+          movPiece(draggingHouse, ...draggingHouseStart);
+          break blck;
+        }
       }
 
       // Only check different houses
       if (houseStart == houseEnd) break blck;
 
-      console.log("From", houseStart, "to", houseEnd);
       __emit('piece-move', { pindex: draggingHouse, hfrom: houseStart, hto: houseEnd });
     }
     draggingHouse = -1;

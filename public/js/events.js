@@ -66,3 +66,7 @@ socket.on('fatal-error', (data) => {
   console.error(`[ERROR]\n - ${data.title}: "${data.message}"`);
   render('error', data);
 });
+
+socket.on('message', (data) => {
+  console.log(`[!MESSAGE] ${data.message}`);
+});

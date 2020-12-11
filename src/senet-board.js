@@ -13,11 +13,12 @@ class SenetBoard {
 
     this.player1Colour = Math.random() <= 0.5;
 
+    this.setupData = undefined; // Populated by this.getSetupData()
     this.data = []; // Board data. true -> white, false -> black, null -> empty
     this.pos = []; // Array of coordinates for each piece
     this.sticks = new Array(5); // Array os booleans. true -> white, false -> black
     this.score = NaN; // Score from throwing sticks - NEVER TRUST CLIENT!
-    this.at_anubis = [0, 0]; // Pieces on end (at anubis). [white, black]
+    this.at_anubis = [0, 1]; // Pieces on end (at anubis). [white, black]
 
     this._white_go = false; // Whos go is it? true -> white, false -> black
 
@@ -25,7 +26,9 @@ class SenetBoard {
 
     // SETUP
     this.data = new Array(3 * 10);
-    for (let x = 0, f = true; x < 10; x++, f = !f) this.data[x] = f;
+    // for (let x = 0, f = true; x < 10; x++, f = !f) this.data[x] = f;
+    this.data[4] = true;
+    this.data[3] = false;
 
     this.throwSticks();
   }
@@ -133,6 +136,7 @@ class SenetBoard {
       name: this._name,
       whoami: null,
     };
+    this.setupData = data;
 
     if (this._play_mode == PlayModeEnum.DOUBLE) {
       data.whoami = this.player1 == socket ? this.player1Colour : !this.player1Colour;
@@ -181,6 +185,72 @@ class SenetBoard {
     }
     this.score = whites == 0 ? 5 : whites;
     return this.score;
+  }
+
+  /**
+   * Normalise piece positions (set this.pos equiv to this.home)
+   */
+  normalisePiecePositions() {
+    for (let i = 0; i < this.data.length; i++) {
+      this.pos[i][0] = this.setupData.home[i][0];
+      this.pos[i][1] = this.setupData.home[i][1];
+    }
+  }
+
+  /**
+   * Broadcast message to both players
+   */
+  message(msg) {
+    if (this.player1 != null) this.player1.message(msg);
+    if (this.player2 != null) this.player2.message(msg);
+  }
+
+  /**
+   * Move piece {index} from {from} to {to}
+   * @param  {Number} pindex     Index of piece in this.data
+   * @param  {Number} hfrom      Index of house moving from
+   * @param  {Number | String} hto      Index of house moving to ('a' for anubis)
+   * @return {Boolean} Moved piece?
+   */
+  move(pindex, hfrom, hto) {
+    const labels = this.setupData.labels;
+
+    // Get labels from house indexes
+    let lbl_from = labels[hfrom];
+    let lbl_to = labels[hto];
+
+    // DIstance O.K. ?
+    let dist = lbl_to - lbl_from;
+    if (dist != this.score) {
+      this.message(`Must move by score! Only moved ${dist}; supposed to move ${this.score}`)
+      return false;
+    }
+
+    // Detect piece colission
+    let colour = this.data[pindex];
+    console.log("Piece Colour: " + colour)
+
+    // Taking a piece?
+    if (this.data[hto] != undefined) {
+      // Cannot take own piece
+      if (this.data[hto] == colour) return false;
+      // Check: enemy before?
+      let col = this.data[labels.indexOf(lbl_to - 1)];
+      if (col != undefined && col != colour) return false;
+
+      // Check: enemy after?
+      col = this.data[labels.indexOf(lbl_to + 1)];
+      if (col != undefined && col != colour) return false;
+
+      // Take piece!
+      this.data[hfrom] = this.data[hto];
+      this.data[hto] = colour;
+    } else {
+      this.data[hfrom] = undefined;
+      this.data[hto] = colour;
+    }
+
+    return true;
   }
 
   /**

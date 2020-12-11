@@ -69,6 +69,10 @@ class SocketIO_Socket {
     console.log(`Socket ${this._sid}: ${message}`);
   }
 
+  message(message) {
+    this.emit('message', { message });
+  }
+
   /**
    * Send status event
    */
@@ -186,6 +190,21 @@ class SocketIO_Socket {
       game.addPlayer(this, password);
     } else {
       this.error('Error', `Game ${name} does not exist`);
+    }
+  }
+
+  /**
+   * Move a piece in this.activeGame
+   */
+  moveGamePiece(pindex, hfrom, hto) {
+    this.message(`Move piece index ${pindex} from ${hfrom} to ${hto}`);
+    if (this.activeGame) {
+      let ok = this.activeGame.move(pindex, hfrom, hto);
+      this.activeGame.normalisePiecePositions();
+      this.activeGame.emitInfo();
+      this.message("Move: " + ok)
+    } else {
+      this.error('Error', 'Must be in a game to move a piece');
     }
   }
 

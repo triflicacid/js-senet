@@ -56,3 +56,6 @@ const getHouseOver = (x, y) => {
   }
   return -1;
 };
+
+/** Are the given coords over Anubis ? */
+const overAnubis = (x, y) => (x > senetBoardWidth && x < senetBoardWidth + anubisWidth && y > anubisPadding && y < anubisPadding + anubisHeight);

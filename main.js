@@ -50,7 +50,7 @@ io.on('connection', (socket) => {
         break;
       }
       case "piece-move": {
-        Socket.error('Error', 'Piece validation not implemented');
+        Socket.moveGamePiece(data.pindex, data.hfrom, data.hto);
         break;
       }
       default:
