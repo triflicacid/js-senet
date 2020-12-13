@@ -8,6 +8,7 @@ class SocketIO_Socket {
   constructor(socket) {
     this._socket = socket;
     this._sid = socket.id;
+    this._block = false; // Block status/emit 's
 
     this.currentStatus = undefined;
     this.user = null; // User object, or null
@@ -77,9 +78,13 @@ class SocketIO_Socket {
    * Send status event
    */
   sendStatus(status, data = undefined) {
-    this.currentStatus = status;
-    if (data == undefined) data = {};
-    this.emit('status', { status, ...data });
+    if (this._block) {
+      this.message(`Status ${status} blocked from sending`);
+    } else {
+      this.currentStatus = status;
+      if (data == undefined) data = {};
+      this.emit('status', { status, ...data });
+    }
   }
 
   /**
@@ -188,8 +193,11 @@ class SocketIO_Socket {
       const game = SenetBoard.games[name];
 
       game.addPlayer(this, password);
+
+      // Is game already over?
+      this.checkGameWon();
     } else {
-      this.error('Error', `Game ${name} does not exist`);
+      return this.error('Error', `Game ${name} does not exist`);
     }
   }
 
@@ -199,13 +207,34 @@ class SocketIO_Socket {
   moveGamePiece(pindex, hfrom, hto) {
     this.message(`Move piece index ${pindex} from ${hfrom} to ${hto}`);
     if (this.activeGame) {
-      let ok = this.activeGame.move(pindex, hfrom, hto);
+      let code = this.activeGame.move(pindex, hfrom, hto);
       this.activeGame.normalisePiecePositions();
-      this.activeGame.emitInfo();
-      this.message("Move: " + ok)
+      this.sendStatus('moved-piece', { code });
+
+      if (this.checkGameWon() == null) {
+        if (code != -1) {
+          this.activeGame._white_go = !this.activeGame._white_go;
+          this.activeGame.throwSticks();
+        }
+        this.activeGame.emitInfo();
+      }
     } else {
       this.error('Error', 'Must be in a game to move a piece');
     }
+  }
+
+  /**
+   * Check game to see if won
+   * @return {null | boolean} Winner of game
+   * */
+  checkGameWon() {
+    let winner = this.activeGame.getWinner();
+    if (typeof winner === 'boolean') {
+      this._block = false;
+      this.sendStatus('winner', { w: winner });
+      this._block = true;
+    }
+    return winner;
   }
 
   /** Alert all users of who is connected */

@@ -59,3 +59,23 @@ const getHouseOver = (x, y) => {
 
 /** Are the given coords over Anubis ? */
 const overAnubis = (x, y) => (x > senetBoardWidth && x < senetBoardWidth + anubisWidth && y > anubisPadding && y < anubisPadding + anubisHeight);
+
+/** We have moved a piece; do something depending on code */
+const movedPiece = code => {
+  switch (code) {
+    case -1:
+      // ERROR
+      Sounds.play("error"); break;
+    case 0:
+      // Success...
+      break;
+    case 1:
+      // Water sploosh
+      Sounds.play("water-splash"); break;
+    case 2:
+      // Anubis
+      Sounds.play("tada"); break;
+    default:
+      console.error(`Unknown movedPiece response code ${code}`);
+  }
+};

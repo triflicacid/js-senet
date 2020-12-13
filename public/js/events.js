@@ -34,6 +34,15 @@ socket.on('status', (data) => {
       if (typeof data.whoami == 'boolean') document.getElementById('extra-info').innerHTML += ` (<b>${data.whoami ? "white" : "black"}</b>)`;
       render('message', 'Please Wait.....');
       break;
+    case "moved-piece":
+      movedPiece(data.code);
+      break;
+    case "winner":
+      if (typeof data.w == 'boolean') {
+        render('message', (data.w ? "White" : "Black") + " Won!");
+        Sounds.play("tada");
+      }
+      break;
     default:
       console.error('StatusError: unknown status: ' + data.status);
       render('error', { message: 'Unknown status ' + data.status });

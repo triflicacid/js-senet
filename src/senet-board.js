@@ -26,9 +26,7 @@ class SenetBoard {
 
     // SETUP
     this.data = new Array(3 * 10);
-    // for (let x = 0, f = true; x < 10; x++, f = !f) this.data[x] = f;
-    this.data[4] = true;
-    this.data[3] = false;
+    for (let x = 0, f = true; x < 10; x++, f = !f) this.data[x] = f;
 
     this.throwSticks();
   }
@@ -207,12 +205,20 @@ class SenetBoard {
 
   /**
    * Move piece {index} from {from} to {to}
-   * @param  {Number} pindex     Index of piece in this.data
    * @param  {Number} hfrom      Index of house moving from
    * @param  {Number | String} hto      Index of house moving to ('a' for anubis)
-   * @return {Boolean} Moved piece?
+   * @return {Number} Status code (-1 : error, 0 : ok, 1 : water, 2 : anubis)
    */
-  move(pindex, hfrom, hto) {
+  move(hfrom, hto) {
+    // Actually moving a piece?
+    if (this.data[hfrom] == undefined) return -1;
+
+    // Colour of piece that is moving
+    let colour = this.data[hfrom];
+
+    // COrrect piece moving?
+    if (this.data[hfrom] != this._white_go) return -1;
+
     const labels = this.setupData.labels;
 
     // Get labels from house indexes
@@ -222,35 +228,115 @@ class SenetBoard {
     // DIstance O.K. ?
     let dist = lbl_to - lbl_from;
     if (dist != this.score) {
-      this.message(`Must move by score! Only moved ${dist}; supposed to move ${this.score}`)
-      return false;
+      this.message(`Must move by score! Attempting to move ${dist} (${lbl_from} to ${lbl_to}), supposed to move ${this.score}`)
+      return -1;
     }
 
-    // Detect piece colission
-    let colour = this.data[pindex];
-    console.log("Piece Colour: " + colour)
+
+    // Moving from special house?
+    switch (hfrom) {
+      case 25:
+        return this._moveToEnd(5, hfrom) ? 2 : -1;
+      case 26:
+        // Water: shouldn't be here
+        this._move(hfrom, 15);
+        return 1;
+      case 27:
+        return this._moveToEnd(3, hfrom) ? 2 : -1;
+      case 28:
+        return this._moveToEnd(2, hfrom) ? 2 : -1;
+      case 29:
+        return this._moveToEnd(1, hfrom) ? 2 : -1;
+    }
+
+    // [DEBUG] Only
+    if (hto == 'a') {
+      this._moveToEnd(this.score, hfrom);
+      return 2;
+    }
 
     // Taking a piece?
     if (this.data[hto] != undefined) {
       // Cannot take own piece
-      if (this.data[hto] == colour) return false;
+      if (this.data[hto] == colour) return -1;
+
       // Check: enemy before?
       let col = this.data[labels.indexOf(lbl_to - 1)];
-      if (col != undefined && col != colour) return false;
+      if (col != undefined && col != colour) return -1;
 
       // Check: enemy after?
       col = this.data[labels.indexOf(lbl_to + 1)];
-      if (col != undefined && col != colour) return false;
+      if (col != undefined && col != colour) return -1;
 
       // Take piece!
       this.data[hfrom] = this.data[hto];
       this.data[hto] = colour;
     } else {
-      this.data[hfrom] = undefined;
-      this.data[hto] = colour;
+      this._move(hfrom, hto);
     }
 
-    return true;
+    // Moving on to water (hto == 26 [index])
+    if (hto == 26) {
+      // Teleport to index 16
+      this._move(hto, 15);
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Force move piece from <from> to <to>
+   * @return {Boolean} Success
+   */
+  _move(from, to) {
+    const labels = this.setupData.labels;
+    let dst = to; // Index of destination house
+
+    while (typeof this.data[dst] === 'boolean') {
+      dst = labels.indexOf(labels[dst] - 1);
+    }
+
+    if (dst > -1) {
+      this.data[dst] = this.data[from];
+      this.data[from] = undefined;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * Attempt to move piece unto Anubis
+   * @param {Number} reqScore   Required this.score value to move 
+   * @param {Number} index      Index of piece moving
+   * @return {Boolean}
+   */
+  _moveToEnd(reqScore, index) {
+    if (typeof this.data[index] == 'boolean' && this.score == reqScore) {
+      this.at_anubis[this.data[index] ? 0 : 1]++;
+      this.data[index] = undefined;
+      return true;
+    } else {
+      this.message(`Moving to end requires certain score of ${reqScore}, got ${this.score}`);
+      return false;
+    }
+  }
+
+  /**
+   * Get winner of game
+   * @return {null | boolean} Winner
+   */
+  getWinner() {
+    let falseCount = 0, trueCount = 0;
+    for (let piece of this.data) {
+      if (piece === true) trueCount++;
+      else if (piece === false) falseCount++;
+    }
+
+    if (trueCount === 0) return true;
+    if (falseCount === 0) return false;
+    return null;
   }
 
   /**

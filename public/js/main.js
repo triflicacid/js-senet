@@ -38,6 +38,8 @@ function setup() {
   whiteStickImage = loadImage('./img/white-stick.png');
 
   Sounds.create("error", "./sound/error.mp3");
+  Sounds.create("tada", "./sound/tada.mp3");
+  Sounds.create("water-splash", "./sound/splash.mp3");
 }
 
 // Renders certain state to canvas
@@ -53,6 +55,7 @@ function render(mode, data = undefined) {
   switch (mode) {
     case 'message':
       fill(100, 80, 200);
+      noStroke();
       textSize(30);
       text(data, 10, 50);
       break;
@@ -94,7 +97,7 @@ function render(mode, data = undefined) {
           fill(220, 0, 255);
           noStroke();
           text("i: " + x, ...pos);
-          text("l: " + boardRenderInfo.labels[x], pos[0], pos[1] - 20);
+          text(boardRenderInfo.labels[x], pos[0], pos[1] - 20);
         }
 
         // Sticks
@@ -176,19 +179,12 @@ function mouseDragged() {
 function mouseReleased() {
   if (renderBoard && draggingHouse != -1) {
     blck: {
-      let houseStart = getHouseOver(...draggingHouseStart);
-      if (houseStart == -1) {
-        console.log("houseStart is -1: ", draggingHouseStart);
-        Sounds.play("error");
-        resetPiecePos(draggingHouse);
-        break blck;
-      }
+      let houseStart = draggingHouse;
 
       let houseEnd = getHouseOver(...boardInfo.pos[draggingHouse]);
       if (houseEnd == -1) {
-        console.log("houseEnd is -1: ", boardInfo.pos[draggingHouse]);
         if (overAnubis(...boardInfo.pos[draggingHouse])) {
-          cohouseEnd = 'a';
+          houseEnd = 'a';
         } else {
           Sounds.play("error");
           movPiece(draggingHouse, ...draggingHouseStart);
@@ -199,7 +195,7 @@ function mouseReleased() {
       // Only check different houses
       if (houseStart == houseEnd) break blck;
 
-      __emit('piece-move', { pindex: draggingHouse, hfrom: houseStart, hto: houseEnd });
+      __emit('piece-move', { hfrom: houseStart, hto: houseEnd });
     }
     draggingHouse = -1;
     draggingHouseStart = undefined;
