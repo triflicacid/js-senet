@@ -35,11 +35,16 @@ socket.on('status', (data) => {
       render('message', 'Please Wait.....');
       break;
     case "moved-piece":
-      movedPiece(data.code);
+      if (typeof data.w === 'boolean') {
+        render('message', (data.w ? "White" : "Black") + " Reached the Afterlife");
+        Sounds.play("anubis-final");
+      } else {
+        currentMessage = getMovementMessage(data.code);
+      }
       break;
     case "winner":
       if (typeof data.w == 'boolean') {
-        render('message', (data.w ? "White" : "Black") + " Won!");
+        render('message', (data.w ? "White" : "Black") + "  Won!");
         Sounds.play("tada");
       }
       break;
@@ -77,5 +82,8 @@ socket.on('fatal-error', (data) => {
 });
 
 socket.on('message', (data) => {
-  console.log(`[!MESSAGE] ${data.message}`);
+  if (typeof data.message === 'string' && data.message.length != 0) {
+    console.log(`[!MESSAGE] ${data.message}`);
+    currentMessage = data.message;
+  }
 });

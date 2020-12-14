@@ -50,7 +50,7 @@ io.on('connection', (socket) => {
         break;
       }
       case "piece-move": {
-        Socket.moveGamePiece(data.hfrom, data.hto);
+        Socket.moveGamePiece(data.hfrom, data.hto, data.flag === true);
         break;
       }
       default:

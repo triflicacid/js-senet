@@ -14,6 +14,7 @@ var stickScore = null; // Score for sticks
 var canThrowSticks = false;
 var renderBoard = false;
 var draggingHouseStart; // Start coordinates for draggingHouse
+var currentMessage = ''; // Message to show when rendering board
 
 const senetBoardWidth = 700;
 const senetBoardHeight = 237;
@@ -30,16 +31,23 @@ function setup() {
   p5Canvas = createCanvas(senetBoardWidth + anubisWidth, 400);
   p5Canvas.parent(containerId);
 
-  noLoop();
-
+  // IMAGES
   senetBoardImage = loadImage('./img/senet-board.png');
   anubisImage = loadImage('./img/anubis.png');
   blackStickImage = loadImage('./img/black-stick.png');
   whiteStickImage = loadImage('./img/white-stick.png');
 
+  // SOUNDS
   Sounds.create("error", "./sound/error.mp3");
   Sounds.create("tada", "./sound/tada.mp3");
   Sounds.create("water-splash", "./sound/splash.mp3");
+  Sounds.create("roll", "./sound/roll.mp3");
+  Sounds.create("anubis-0", "./sound/anubis-1.mp3");
+  Sounds.create("anubis-1", "./sound/anubis-2.mp3");
+  Sounds.create("anubis-2", "./sound/anubis-3.mp3");
+  Sounds.create("anubis-final", "./sound/anubis-final.mp3");
+
+  noLoop();
 }
 
 // Renders certain state to canvas
@@ -94,10 +102,6 @@ function render(mode, data = undefined) {
           if (data.board[x] != null) {
             renderPiece(data.board[x], pos[0], pos[1], w);
           }
-          fill(220, 0, 255);
-          noStroke();
-          text("i: " + x, ...pos);
-          text(boardRenderInfo.labels[x], pos[0], pos[1] - 20);
         }
 
         // Sticks
@@ -110,6 +114,14 @@ function render(mode, data = undefined) {
         noStroke();
         fill(0);
         text(data.score, gap / 3, y + whiteStickImage.height / 2);
+
+        // Board message
+        if (currentMessage.length != 0) {
+          noStroke();
+          textSize(14);
+          fill(51);
+          text(currentMessage, (data.sticks.length + 3) * gap, y);
+        }
 
         // Render pieces that are on anubis
         gap = w * 2;
@@ -195,7 +207,12 @@ function mouseReleased() {
       // Only check different houses
       if (houseStart == houseEnd) break blck;
 
-      __emit('piece-move', { hfrom: houseStart, hto: houseEnd });
+      let flag = false;
+      if (houseStart == 26) {
+        flag = window.confirm("~~ House of Waters ~~\nHope for a four or succumb to House of Waters?\n\n(Sticks will be re-cast)");
+      }
+
+      __emit('piece-move', { hfrom: houseStart, hto: houseEnd, flag });
     }
     draggingHouse = -1;
     draggingHouseStart = undefined;

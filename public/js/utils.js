@@ -60,22 +60,50 @@ const getHouseOver = (x, y) => {
 /** Are the given coords over Anubis ? */
 const overAnubis = (x, y) => (x > senetBoardWidth && x < senetBoardWidth + anubisWidth && y > anubisPadding && y < anubisPadding + anubisHeight);
 
-/** We have moved a piece; do something depending on code */
-const movedPiece = code => {
-  switch (code) {
-    case -1:
-      // ERROR
-      Sounds.play("error"); break;
-    case 0:
-      // Success...
-      break;
-    case 1:
-      // Water sploosh
-      Sounds.play("water-splash"); break;
-    case 2:
-      // Anubis
-      Sounds.play("tada"); break;
-    default:
-      console.error(`Unknown movedPiece response code ${code}`);
+/**
+ * Get movement message depending on code
+ * @return {String} Message
+*/
+const getMovementMessage = code => {
+  console.log("Movment Code:", code);
+
+  // Error...
+  if (code < 0) {
+    if (code != -7 && code != -6) Sounds.play('error');
+    switch (code) {
+      case -2:
+        return "Must move according to thrown score";
+      case -3:
+        return "A forward move is possible";
+      case -4:
+        return "A backward move is possible";
+      case -5:
+        return "The Good House is protected; cannot swap piece";
+      case -6:
+        Sounds.play("roll");
+        return "No legal moves; go forfeited";
+      case -7:
+        Sounds.play("water-splash");
+        return "House of Waters has claimed you...";
+      case -8:
+        return "Must throw a 3 to exit";
+      case -9:
+        return "Must throw a 2 to exit";
+      case -10:
+        return "Must throw a 1 to exit";
+      case -11:
+        return "Must visit House of Good before proceeding";
+      default:
+        return "Unable to move piece";
+    }
+  } else {
+    Sounds.play("roll");
+    switch (code) {
+      case 2:
+        Sounds.play("anubis-" + Math.floor(Math.random() * 3));
+        return "A piece reached Anubis";
+      default:
+        return "Moved piece";
+    }
   }
 };

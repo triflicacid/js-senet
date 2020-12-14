@@ -204,18 +204,30 @@ class SocketIO_Socket {
   /**
    * Move a piece in this.activeGame
    */
-  moveGamePiece(pindex, hfrom, hto) {
-    this.message(`Move piece index ${pindex} from ${hfrom} to ${hto}`);
+  moveGamePiece(hfrom, hto, flag) {
     if (this.activeGame) {
-      let code = this.activeGame.move(pindex, hfrom, hto);
+      let code = this.activeGame.move(hfrom, hto, flag);
       this.activeGame.normalisePiecePositions();
-      this.sendStatus('moved-piece', { code });
 
-      if (this.checkGameWon() == null) {
-        if (code != -1) {
-          this.activeGame._white_go = !this.activeGame._white_go;
+      const data = { code, w: this.activeGame.getWinner() };
+      this.sendStatus('moved-piece', data);
+
+      if (data.w == null) {
+        // Forfeit go
+        if (code == -6) {
           this.activeGame.throwSticks();
+          this.activeGame._white_go = !this.activeGame._white_go;
         }
+
+        // Toggle goes
+        else if (code > -1) {
+          this.activeGame.throwSticks();
+
+          if (SenetBoard.playAgainValues.indexOf(this.activeGame.score) === -1) {
+            this.activeGame._white_go = !this.activeGame._white_go;
+          }
+        }
+
         this.activeGame.emitInfo();
       }
     } else {

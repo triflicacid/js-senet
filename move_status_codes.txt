@@ -1,0 +1,16 @@
+==== NEGATIVE : ERROR ====
+-1 : General error
+-2 : Moving incorrect distance
+-3 : A forward move is possible
+-4 : A backward move is possible
+-5 : Square 25 (good house) is protected
+-6 : Forfeit Go
+-7 : House of Waters!!!!
+-8 : Must throw a 3 to exit
+-9 : Must throw a 2 to exit
+-10 : Must throw a 1 to exit
+-11 : Must visit House of Good before proceeding
+
+==== OTHER ====
+0 : Okay
+2 : Piece exited board

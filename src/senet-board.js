@@ -18,7 +18,7 @@ class SenetBoard {
     this.pos = []; // Array of coordinates for each piece
     this.sticks = new Array(5); // Array os booleans. true -> white, false -> black
     this.score = NaN; // Score from throwing sticks - NEVER TRUST CLIENT!
-    this.at_anubis = [0, 1]; // Pieces on end (at anubis). [white, black]
+    this.at_anubis = [0, 0]; // Pieces on end (at anubis). [white, black]
 
     this._white_go = false; // Whos go is it? true -> white, false -> black
 
@@ -207,82 +207,122 @@ class SenetBoard {
    * Move piece {index} from {from} to {to}
    * @param  {Number} hfrom      Index of house moving from
    * @param  {Number | String} hto      Index of house moving to ('a' for anubis)
-   * @return {Number} Status code (-1 : error, 0 : ok, 1 : water, 2 : anubis)
+   * @param  {Boolean} flag             Flag value
+   * @return {Number} Status code (see help file)
    */
-  move(hfrom, hto) {
+  move(hfrom, hto, flag) {
     // Actually moving a piece?
     if (this.data[hfrom] == undefined) return -1;
 
     // Colour of piece that is moving
-    let colour = this.data[hfrom];
+    const colour = this.data[hfrom];
 
-    // COrrect piece moving?
-    if (this.data[hfrom] != this._white_go) return -1;
+    // Correct piece moving?
+    if (colour != this._white_go) return -1;
 
+    // Cannot pass 25... must land directly on it
+    if (hfrom < 25 && hto > 25) return -11;
+
+    // NB piece on square index 25 is protected no matter what
+    if (hto == 25 && this.data[hto] != undefined && this.data[hto] != colour) return -5;
+
+    // On House of Waters?
+    if (hfrom == 26) {
+      this.throwSticks();
+      if (flag || this.score != 4) {
+        // Go to House of Second Life
+        this._move(26, 15);
+        return -7;
+      } else {
+        // Reach end
+        hto = 'a';
+      }
+    }
+
+    if (hto == 'a') {
+      this.data[hfrom] = undefined;
+      this.at_anubis[colour ? 0 : 1]++;
+      return 2;
+    } else {
+      // Special squares require certain moves
+      if (hfrom == 27) return -8;
+      if (hfrom == 28) return -9;
+      if (hfrom == 29) return -10;
+    }
+
+    // General Moves
     const labels = this.setupData.labels;
 
     // Get labels from house indexes
-    let lbl_from = labels[hfrom];
-    let lbl_to = labels[hto];
+    const lbl_from = labels[hfrom];
+    const lbl_to = labels[hto];
 
-    // DIstance O.K. ?
-    let dist = lbl_to - lbl_from;
-    if (dist != this.score) {
-      this.message(`Must move by score! Attempting to move ${dist} (${lbl_from} to ${lbl_to}), supposed to move ${this.score}`)
-      return -1;
+    // If distance == score ?
+    if (Math.abs(lbl_to - lbl_from) != this.score) return -2;
+
+    if (this.isValidMove(hfrom, hto)) {
+      // Coolio
+    } else if (this.isValidMove(hfrom, labels.indexOf(lbl_from - this.score))) {
+      // Can move backward if cannot move forward
+      if (lbl_from - this.score != lbl_to) {
+        // If we can move backward, but are not, error...
+        return -4;
+      }
+    } else {
+      // FORFEIT
+      return -6;
     }
 
-
-    // Moving from special house?
-    switch (hfrom) {
-      case 25:
-        return this._moveToEnd(5, hfrom) ? 2 : -1;
-      case 26:
-        // Water: shouldn't be here
-        this._move(hfrom, 15);
-        return 1;
-      case 27:
-        return this._moveToEnd(3, hfrom) ? 2 : -1;
-      case 28:
-        return this._moveToEnd(2, hfrom) ? 2 : -1;
-      case 29:
-        return this._moveToEnd(1, hfrom) ? 2 : -1;
-    }
-
-    // [DEBUG] Only
-    if (hto == 'a') {
-      this._moveToEnd(this.score, hfrom);
-      return 2;
-    }
-
-    // Taking a piece?
     if (this.data[hto] != undefined) {
-      // Cannot take own piece
-      if (this.data[hto] == colour) return -1;
-
-      // Check: enemy before?
-      let col = this.data[labels.indexOf(lbl_to - 1)];
-      if (col != undefined && col != colour) return -1;
-
-      // Check: enemy after?
-      col = this.data[labels.indexOf(lbl_to + 1)];
-      if (col != undefined && col != colour) return -1;
-
-      // Take piece!
-      this.data[hfrom] = this.data[hto];
+      // Swap pieces
+      if (hto == 27 || hto == 28 || hto == 29) {
+        // Enemy goes into water
+        this._move(hto, 15);
+        return 1;
+      } else {
+        this.data[hfrom] = this.data[hto];
+      }
       this.data[hto] = colour;
     } else {
-      this._move(hfrom, hto);
+      // Move (if moving backward from special house, go into water)
+      if (hto < hfrom && (hfrom == 27 || hfrom == 28 || hfrom == 29)) {
+        // Into water
+        this._move(hfrom, 15);
+        return 1;
+      } else {
+        this.data[hfrom] = undefined;
+        this.data[hto] = colour;
+      }
     }
-
-    // Moving on to water (hto == 26 [index])
-    if (hto == 26) {
-      // Teleport to index 16
-      this._move(hto, 15);
-      return 1;
-    }
-
     return 0;
+  }
+
+  /**
+   * Check: is valid move. Assume distance is OK and no conflict in whose go it is
+   * @param {Number} from     Index moving from
+   * @param {Number} to       Index moving to
+   * @return {Boolean} Is valid move?
+   */
+  isValidMove(from, to) {
+    if (to < 0 || to > this.data.length - 1) return false;
+    if (this.data[to] == undefined) return true;
+    if (this.data[from] == this.data[to]) return false;
+
+    const labels = this.setupData.labels;
+    let lbl_to = labels[to];
+
+    // If on 27, 28, 29 pieces are not protected
+    if (to == 27 || to == 28 || to == 29) return true;
+
+    // Check: enemy before?
+    let col = this.data[labels.indexOf(lbl_to - 1)];
+    if (col != undefined && col != this.data[from]) return false;
+
+    // Check: enemy after?
+    col = this.data[labels.indexOf(lbl_to + 1)];
+    if (col != undefined && col != this.data[from]) return false;
+
+    return true;
   }
 
   /**
